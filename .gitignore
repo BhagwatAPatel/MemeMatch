@@ -1,0 +1,21 @@
+# Virtual environment (machine-specific, rebuilt from requirements.txt)
+.venv/
+
+# Python bytecode
+__pycache__/
+*.pyc
+
+# Collected training data (private, contains your face-expression samples)
+data/*
+!data/.gitkeep
+
+# Trained model weights are rebuilt by training/train.py; keep the folder
+models/expression_model.pt
+
+# Editor / OS junk
+.vscode/
+.idea/
+.DS_Store
+
+# pytest cache
+.pytest_cache/
