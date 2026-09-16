@@ -14,6 +14,7 @@ import sys
 import cv2
 
 from app.camera import Camera, CameraError, FPSCounter
+from app.face_tracker import FaceTracker, draw_face_debug 
 
 WINDOW_NAME = "MemeMatch"
 
@@ -25,9 +26,9 @@ def parse_args():
     )
     return parser.parse_args()
 
-def draw_hud(frame, fps: float):
-    '''Draw the heads-up display (for now: just FPS) onto the frame.'''
-    text = f"FPS: {fps:4.1f}"
+def draw_hud(frame, fps: float, face_found: bool = False):
+    '''Draw the heads-up display (FPS and face status) onto the frame.'''
+    text = f"FPS: {fps:4.1f}    Face: {'yes' if face_found else 'no'}"
     cv2.putText(
         frame, text, (10, 25),
         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA,
@@ -36,25 +37,36 @@ def draw_hud(frame, fps: float):
 def main() -> int:
     args = parse_args()
     fps_counter = FPSCounter()
+    show_landmarks = True
 
     try:
-        with Camera(args.camera) as cam:
-            print(f"Camera {args.camera} opened. Press q to quit.")
+        with Camera(args.camera) as cam, FaceTracker() as tracker:
+            print(f"Camera {args.camera} opened. Press q to quit, 1 to toggle landmarks.")
             while True:
                 frame = cam.read()
 
                 # Mirror so the preview behaves like a mirror (move right,
                 # you move right). Video-call apps do the same.
+                # Must happen BEFORE tracking so landmarks line up with 
+                # what is drawn on screen
                 frame = cv2.flip(frame, 1)
 
-                draw_hud(frame, fps_counter.tick())
+                face = tracker.process(frame)
+                if face is not None and show_landmarks:
+                    draw_face_debug(frame, face)
+
+                draw_hud(frame, fps_counter.tick(), face is not None)
                 cv2.imshow(WINDOW_NAME, frame)
 
                 # waitKey(1) waits 1ms for a key AND lets the window redraw.
                 # Without it, imshow never actually paints anything.
-                if cv2.waitKey(1) & 0xFF == ord("q"):
+                key = cv2.waitKey(1) & 0xFF
+                if key == ord("q"):
                     break
-    except CameraError as err:
+                if key == ord("1"):
+                    show_landmarks = not show_landmarks
+
+    except (CameraError, FileNotFoundError) as err:
         print(f"Error: {err}", file=sys.stderr)
         return 1
     finally:
