@@ -15,6 +15,8 @@ import cv2
 
 from app.camera import Camera, CameraError, FPSCounter
 from app.face_tracker import FaceTracker, draw_face_debug 
+from app.features import top_features
+
 
 WINDOW_NAME = "MemeMatch"
 
@@ -52,8 +54,13 @@ def main() -> int:
                 frame = cv2.flip(frame, 1)
 
                 face = tracker.process(frame)
-                if face is not None and show_landmarks:
-                    draw_face_debug(frame, face)
+                if face is not None:
+                    if show_landmarks:
+                        draw_face_debug(frame, face)
+
+                    for i, (name, score) in enumerate(top_features(face)):
+                        cv2.putText(frame, f"{name}: {score:.2f}", (10, 90 + i * 25),
+                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
                 draw_hud(frame, fps_counter.tick(), face is not None)
                 cv2.imshow(WINDOW_NAME, frame)
