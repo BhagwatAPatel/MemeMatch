@@ -36,8 +36,16 @@ class ExpressionMLP(nn.Module):
         # applies softmax itself, and applying it twice hurts training.
         return self.net(x)
 
-def save_model(model: ExpressionMLP, labels: list[str], path: Path = DEFAULT_MODEL_PATH) -> None:
-    '''Save weights AND the metadata needed to use them correctly later.
+def save_model(
+    model: ExpressionMLP,
+    labels: list[str],
+    path: Path = DEFAULT_MODEL_PATH,
+    *,
+    test_session: str,
+    val_session: str,
+) -> None:
+    '''Save weights AND the metadata needed to use them correctly later,
+    including which sessions were held out, so evaluate scores the same split.
     '''
     path.parent.mkdir(parents=True, exist_ok=True)
     torch.save(
@@ -45,6 +53,8 @@ def save_model(model: ExpressionMLP, labels: list[str], path: Path = DEFAULT_MOD
             "state_dict": model.state_dict(),
             "labels": labels,
             "feature_names": FEATURE_NAMES,
+            "test_session": test_session,
+            "val_session": val_session,
         },
         path,
     )
@@ -75,3 +85,15 @@ def load_model(path: Path = DEFAULT_MODEL_PATH) -> tuple[ExpressionMLP, list[str
     model.load_state_dict(bundle["state_dict"])
     model.eval()
     return model, labels
+
+
+def load_split_sessions(path: Path = DEFAULT_MODEL_PATH) -> tuple[str, str]:
+    '''Return (test_session, val_session): the sessions held out in training.'''
+    bundle = torch.load(path, map_location="cpu", weights_only=False)
+    try:
+        return bundle["test_session"], bundle["val_session"]
+    except KeyError:
+        raise ValueError(
+            "Model file doesn't record its held-out sessions (saved by an older "
+            "version). Retrain with: python -m training.train"
+        ) from None
