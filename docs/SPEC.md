@@ -221,7 +221,7 @@ MemeMatch/
 | Training | Fixed seed, Adam, lr 1e-3, cross-entropy (no class weighting), batch 64, 50 epochs, keep the epoch with best val accuracy (ties broken by lower val loss). Always saves; the shipped model is trained on the train sessions only |
 | Overfitting control | Dropout, best-epoch selection on val accuracy, small model, session-based split |
 | Metrics | Accuracy, per-class precision/recall, confusion matrix, and confidence for correct vs. wrong test predictions (used to choose the live threshold). `evaluate` exits non-zero if test accuracy < 85% or any class recall < 70% |
-| Persistence | One `.pt` file holding the state dict, the label names in order and the feature names. `load_model` raises a clear error if the feature contract differs from `FEATURE_NAMES`; there is no remapping |
+| Persistence | One `.pt` file holding the state dict, the label names in order, the feature names, and the test and validation session names, so `evaluate` scores exactly the split the model was trained against. `load_model` raises a clear error if the feature contract differs from `FEATURE_NAMES`; there is no remapping |
 | Inference | `model.eval()`, `torch.no_grad()`, single forward pass per frame (< 1 ms) |
 
 **Why not just threshold blendshapes by hand?** You could (mouthSmile > 0.5 => happy). But rules break on "surprised vs angry-with-open-mouth" and the classifier learns your face. The MLP is also the educational point of the project. We *will* write a rule-based fallback in Phase 6 as a comparison, which is a great 10-line exercise.
@@ -304,9 +304,9 @@ Mitigations if needed: run at 640x480 not 1080p; run landmarker every 2nd frame 
 
 **FR-005 (features)**: `features.extract()` returns shape `(52,)` float32; unit test passes; printing a few values changes visibly when you smile.
 
-**FR-006 (collect)**: pressing a key records ~10 rows/s to `data/samples_<session>.csv` with a label; file opens in a spreadsheet and looks sane.
+**FR-006 (collect)**: pressing a key records ~10 rows/s, each with a label and the run's session id (a timestamp, or `--session NAME`), appended to `data/samples.csv`; file opens in a spreadsheet and looks sane.
 
-**FR-007/008 (train/eval)**: `python -m training.train` finishes in < 1 minute, saves `models/expression_model.pt`; `python -m training.evaluate` prints test accuracy >= 85% and a 5x5 confusion matrix; logistic-regression baseline printed for comparison.
+**FR-007/008 (train/eval)**: `python -m training.train` finishes in < 1 minute, saves `models/expression_model.pt`; `python -m training.evaluate` (no flags; it reads the held-out sessions from the model file) prints test accuracy, per-label precision and recall, a 5x5 confusion matrix and the logistic-regression baseline, and exits non-zero unless accuracy >= 85% and every class recall >= 70%.
 
 **FR-009/010 (live inference + smoothing)**: expression label and confidence drawn on screen; the label does not flicker frame-to-frame; a held expression is confirmed within ~1 s.
 

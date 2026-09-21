@@ -16,7 +16,7 @@ One continuous recording run in a single setting (lighting, distance, head angle
 
 **Sample store**:
 The module (`training.samples.SampleStore`) that owns the sample CSV: appending, counting, loading, clearing. The only code that knows the file format.
-_Avoid_: dataset (that's the train/test tensors built *from* the store)
+_Avoid_: dataset (that's the train/validation/test tensors built *from* the store)
 
 **Dataset**:
 Train, validation and test tensors plus the label vocabulary, built from the **sample store** by `training.dataset.load_dataset`. The validation split chooses the best training epoch; the test split is touched only for the final score.
@@ -25,7 +25,7 @@ Train, validation and test tensors plus the label vocabulary, built from the **s
 The expression class name of a **sample** (`neutral`, `happy`, `surprised`, `angry`, `sad`). Class ids are derived from the sorted label names at load time.
 
 **Expression model**:
-The trained classifier together with its **label** vocabulary and the feature contract it was trained against, saved as one file. Turns a **feature vector** into a label plus a confidence. Avoid: classifier, MLP, checkpoint.
+The trained classifier together with its **label** vocabulary, the feature contract it was trained against and the **sessions** it held out for validation and test, saved as one file. Turns a **feature vector** into a label plus a confidence. Avoid: classifier, MLP, checkpoint.
 
 **Confidence**:
 The **expression model**'s softmax probability for its top **label** on one **feature vector**. Uncalibrated: it measures how peaked the model's output is, not how often it is right. The live threshold is chosen by comparing confidence on correct vs. wrong held-out predictions.
