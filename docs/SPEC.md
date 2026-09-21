@@ -215,13 +215,13 @@ MemeMatch/
 | Output | Softmax over N classes (N=5 for MVP) |
 | Architecture | `Linear(52,64) -> ReLU -> Dropout(0.2) -> Linear(64,32) -> ReLU -> Linear(32,N)` |
 | Baseline | scikit-learn `LogisticRegression` on the same features (to prove the MLP is worth it) |
-| Dataset | ~300-500 samples per class, recorded at ~10 samples/s while holding each expression, in 2-3 sessions (different lighting, distance, head angle) |
+| Dataset | ~300-500 samples per class, recorded at ~10 samples/s while holding each expression, in at least 3 sessions (different lighting, distance, head angle). A session is one `collect` run; its id is a timestamp, with an optional `--session` override. Every session must contain every label |
 | Preprocessing | None needed beyond float32 cast; blendshapes are already normalised. (If we later add landmark distances we standardise them.) |
-| Split | 70 / 15 / 15 train / val / test, stratified, **split by session** where possible so test data is from a different recording |
-| Training | Adam, lr 1e-3, cross-entropy, batch 64, ~50 epochs, keep the epoch with best val accuracy |
-| Overfitting control | Dropout, early stopping on val accuracy, small model, session-based split |
-| Metrics | Accuracy, per-class precision/recall, confusion matrix |
-| Persistence | `torch.save(model.state_dict())` + a JSON sidecar listing class names in order |
+| Split | **Whole sessions** are assigned to splits, never individual samples. Requires >= 3 sessions. By default the last session in file order is test, the one before it is validation, the rest are train; `load_dataset(test_session=, val_session=)` overrides. Fewer than 3 sessions, or a label missing from any session, is an error with a per-session count table |
+| Training | Fixed seed, Adam, lr 1e-3, cross-entropy (no class weighting), batch 64, 50 epochs, keep the epoch with best val accuracy (ties broken by lower val loss). Always saves; the shipped model is trained on the train sessions only |
+| Overfitting control | Dropout, best-epoch selection on val accuracy, small model, session-based split |
+| Metrics | Accuracy, per-class precision/recall, confusion matrix, and confidence for correct vs. wrong test predictions (used to choose the live threshold). `evaluate` exits non-zero if test accuracy < 85% or any class recall < 70% |
+| Persistence | One `.pt` file holding the state dict, the label names in order and the feature names. `load_model` raises a clear error if the feature contract differs from `FEATURE_NAMES`; there is no remapping |
 | Inference | `model.eval()`, `torch.no_grad()`, single forward pass per frame (< 1 ms) |
 
 **Why not just threshold blendshapes by hand?** You could (mouthSmile > 0.5 => happy). But rules break on "surprised vs angry-with-open-mouth" and the classifier learns your face. The MLP is also the educational point of the project. We *will* write a rule-based fallback in Phase 6 as a comparison, which is a great 10-line exercise.

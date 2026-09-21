@@ -8,15 +8,24 @@ Webcam app that reads your facial expression and matches it to a meme.
 The 52 MediaPipe blendshape scores for one face, in `FEATURE_NAMES` order, clipped to 0-1. Produced by `app.features.extract_features`; the model's input.
 
 **Sample**:
-One labelled **feature vector**: an expression label plus its 52 scores. One row in the sample CSV.
+One labelled **feature vector**: an expression label plus its 52 scores, tagged with the **session** it was recorded in. One row in the sample CSV.
 _Avoid_: row (when speaking of the domain), example, record
+
+**Session**:
+One continuous recording run in a single setting (lighting, distance, head angle). Every **sample** belongs to exactly one session. Sessions, not individual samples, are what get divided between train, validation and test, so a held-out score reflects an unseen recording rather than near-duplicates of training frames.
 
 **Sample store**:
 The module (`training.samples.SampleStore`) that owns the sample CSV: appending, counting, loading, clearing. The only code that knows the file format.
 _Avoid_: dataset (that's the train/test tensors built *from* the store)
 
 **Dataset**:
-Train/test tensors plus the label vocabulary, built from the **sample store** by `training.dataset.load_dataset`.
+Train, validation and test tensors plus the label vocabulary, built from the **sample store** by `training.dataset.load_dataset`. The validation split chooses the best training epoch; the test split is touched only for the final score.
 
 **Label**:
 The expression class name of a **sample** (`neutral`, `happy`, `surprised`, `angry`, `sad`). Class ids are derived from the sorted label names at load time.
+
+**Expression model**:
+The trained classifier together with its **label** vocabulary and the feature contract it was trained against, saved as one file. Turns a **feature vector** into a label plus a confidence. Avoid: classifier, MLP, checkpoint.
+
+**Confidence**:
+The **expression model**'s softmax probability for its top **label** on one **feature vector**. Uncalibrated: it measures how peaked the model's output is, not how often it is right. The live threshold is chosen by comparing confidence on correct vs. wrong held-out predictions.
