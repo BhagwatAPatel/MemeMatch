@@ -2,7 +2,9 @@
 Camera is replaced with one that fails, so main() returns right after
 the reset / validation steps it is being tested on.'''
 
+import re
 import sys
+from datetime import datetime
 
 import pytest
 
@@ -57,3 +59,19 @@ def test_reset_declined_keeps_file(tmp_path, monkeypatch):
 
     assert run(monkeypatch, path, "--reset", answer="n") == 0
     assert path.exists()
+
+
+def test_default_session_id_is_a_readable_sortable_timestamp():
+    early = collect.default_session_id(datetime(2026, 9, 21, 14, 30, 5))
+    late = collect.default_session_id(datetime(2026, 9, 21, 14, 31, 0))
+
+    assert early == "20260921-143005"
+    assert early < late
+
+
+def test_session_flag_overrides_the_timestamp_default(monkeypatch):
+    monkeypatch.setattr(sys, "argv", ["collect", "--session", "desk-evening"])
+    assert collect.parse_args().session == "desk-evening"
+
+    monkeypatch.setattr(sys, "argv", ["collect"])
+    assert re.fullmatch(r"\d{8}-\d{6}", collect.parse_args().session)

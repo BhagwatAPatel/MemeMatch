@@ -1,7 +1,7 @@
 '''The labelled-sample CSV: the one place that knows its format.
 
-File layout: a header row ["label", *FEATURE_NAMES], then one row per
-sample: the label string followed by the 52 feature values. Collection
+File layout: a header row ["label", "session", *FEATURE_NAMES], then one
+row per sample: the label string, the session id, then the 52 feature values. Collection
 appends to it, training loads from it, and nothing else touches the file,
 so the writer and reader can never drift apart.
 
@@ -17,7 +17,14 @@ import numpy as np
 from app.features import FEATURE_NAMES, NUM_FEATURES
 
 DEFAULT_PATH = Path("data") / "samples.csv"
-HEADER = ["label", *FEATURE_NAMES]
+HEADER = ["label", "session", *FEATURE_NAMES]
+
+_PRE_SESSION_HEADER = ["label", *FEATURE_NAMES]
+
+_PRE_SESSION_ERROR = (
+    "{path} has no session column (it was collected before sessions "
+    "existed). Clear it and re-record: python -m training.collect --reset"
+)
 
 _LAYOUT_ERROR = (
     "{path} was collected with a different feature layout than "
@@ -31,7 +38,7 @@ class SampleStore:
     def __init__(self, path: Path = DEFAULT_PATH):
         self.path = Path(path)
 
-    def append(self, label: str, features: np.ndarray) -> None:
+    def append(self, label: str, features: np.ndarray, session: str) -> None:
         '''Add one sample, creating the file and header if needed.
 
         Each call opens, writes and closes the file, so a crash or Ctrl-C
@@ -57,7 +64,7 @@ class SampleStore:
             writer = csv.writer(f)
             if is_new:
                 writer.writerow(HEADER)
-            writer.writerow([label, *values.tolist()])
+            writer.writerow([label, session, *values.tolist()])
 
     def counts(self) -> Counter:
         '''Return {label: n} for the samples on disk; empty if there is no file.
@@ -66,10 +73,11 @@ class SampleStore:
         '''
         if not self.path.exists():
             return Counter()
-        return Counter(label for label, _ in self._read_samples())
+        return Counter(label for label, _, _ in self._read_samples())
 
-    def load(self) -> tuple[np.ndarray, list[str]]:
-        '''Return (X, labels): X is float32 (rows, 52), one label per sample.
+    def load(self) -> tuple[np.ndarray, list[str], list[str]]:
+        '''Return (X, labels, sessions): X is float32 (rows, 52); labels and
+        sessions each hold one entry per sample, in file order.
 
         Raises FileNotFoundError if nothing has been collected, and
         ValueError if the header or any row doesn't match the layout.
@@ -80,9 +88,10 @@ class SampleStore:
             )
 
         samples = list(self._read_samples())
-        labels = [label for label, _ in samples]
-        X = np.array([values for _, values in samples], dtype=np.float32)
-        return X.reshape(len(samples), NUM_FEATURES), labels
+        labels = [label for label, _, _ in samples]
+        sessions = [session for _, session, _ in samples]
+        X = np.array([values for _, _, values in samples], dtype=np.float32)
+        return X.reshape(len(samples), NUM_FEATURES), labels, sessions
 
     def clear(self) -> None:
         '''Delete all samples. Safe to call when there are none.'''
@@ -93,11 +102,13 @@ class SampleStore:
             self._verify_header(next(csv.reader(f), None))
 
     def _verify_header(self, header: list[str] | None) -> None:
+        if header == _PRE_SESSION_HEADER:
+            raise ValueError(_PRE_SESSION_ERROR.format(path=self.path))
         if header != HEADER:
             raise ValueError(_LAYOUT_ERROR.format(path=self.path))
 
     def _read_samples(self):
-        '''Yield (label, values) per sample, validating as it goes.
+        '''Yield (label, session, values) per sample, validating as it goes.
 
         The one reader behind counts() and load(): it owns the header
         check, blank-line skipping and per-row validation. An empty
@@ -118,9 +129,9 @@ class SampleStore:
                         f"expected {len(HEADER)} columns, got {len(row)}"
                     )
                 try:
-                    values = [float(v) for v in row[1:]]
+                    values = [float(v) for v in row[2:]]
                 except ValueError as err:
                     raise ValueError(
                         f"Bad row at line {reader.line_num} of {self.path}: {err}"
                     ) from err
-                yield row[0], values
+                yield row[0], row[1], values

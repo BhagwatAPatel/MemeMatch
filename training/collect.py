@@ -15,6 +15,7 @@ Pipeline position: Camera -> FaceTracker -> features -> [collect] -> SampleStore
 import argparse
 import time
 from collections import Counter
+from datetime import datetime
 from pathlib import Path
 
 import cv2 
@@ -32,6 +33,10 @@ LABELS = ["neutral", "happy", "surprised", "angry", "sad"]
 KEY_TO_LABEL = {ord(str(i + 1)): label for i, label in enumerate(LABELS)}
 
 WINDOW_NAME = "MemeMatch - collect"
+
+def default_session_id(now: datetime | None = None) -> str:
+    '''A sortable timestamp naming this recording run, e.g. 20260921-143005.'''
+    return (now or datetime.now()).strftime("%Y%m%d-%H%M%S")
 
 def draw_hud(frame, label: str, recording: bool, counts: Counter, face_found: bool) -> None:
     '''Overlay the collection status on the frame.'''
@@ -55,6 +60,8 @@ def parse_args():
     parser = argparse.ArgumentParser(description="Record expression samples to CSV")
     parser.add_argument("--camera", type=int, default=0, help="camera index")
     parser.add_argument("--out", type=Path, default=DEFAULT_PATH, help="CSV to append to")
+    parser.add_argument("--session", default=default_session_id(),
+                        help="name for this recording run (default: a timestamp)")
     parser.add_argument("--rate", type=float, default=10.0,
                         help="samples per second while recording")
     parser.add_argument("--reset", action="store_true",
@@ -87,7 +94,7 @@ def main() -> int:
         # layout fails here, before the camera opens, not mid-recording.
         counts = store.counts()
         with Camera(args.camera) as cam, FaceTracker() as tracker:
-            print(f"Appending to {args.out}. Existing samples: {dict(counts)}")
+            print(f"Appending to {args.out} as session {args.session}. Existing samples: {dict(counts)}")
             while True:
                 frame = cam.read()
                 frame = cv2.flip(frame, 1) # same mirror as the app, so it feels natural
@@ -98,7 +105,7 @@ def main() -> int:
                     now = time.monotonic()
                     # Rate-limit so 30 fps doesn't dump 30 near-identical samples/s.
                     if recording and now - last_saved >= interval:
-                        store.append(label, extract_features(face))
+                        store.append(label, extract_features(face), args.session)
                         counts[label] += 1
                         last_saved = now
 
