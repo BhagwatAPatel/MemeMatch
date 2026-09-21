@@ -2,3 +2,5 @@ opencv-python>=4.10
 numpy>=1.26,<3
 pytest>=8
 mediapipe>=0.10.35 # 1.x aborts on Apple Silicon (Metal init bug), Sept 2026
+torch>=2.4
+scikit-learn>=1.5
