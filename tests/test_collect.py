@@ -1,34 +1,59 @@
-'''Tests for the CSV side of training.collect. No camera involved.'''
+'''Tests for training.collect.main's startup flow. No camera involved:
+Camera is replaced with one that fails, so main() returns right after
+the reset / validation steps it is being tested on.'''
 
-import csv
+import sys
 
-import numpy as np
+import pytest
 
-from app.features import NUM_FEATURES
-from training.collect import SampleWriter, count_existing
+from training import collect
+from training.samples import HEADER
 
-def test_writer_creates_header_then_rows(tmp_path):
-    # tmp_path is a pytest fixture: a fresh temporary folder per test,
-    # deleted afterwards, so tests never touch real data / folder.
+STALE = "label,a,b\nhappy,0.1,0.2\n"
 
-    out = tmp_path / "samples.csv"
-    with SampleWriter(out) as w:
-        w.write("happy", np.ones(NUM_FEATURES, dtype=np.float32))
-        w.write("sad", np.zeros(NUM_FEATURES, dtype=np.float32))
 
-    rows = list(csv.reader(out.open()))
-    assert rows[0][0] == "label"
-    assert len(rows[0]) == 1 + NUM_FEATURES
-    assert rows[1][0] == "happy" and rows[2][0] == "sad"
-    assert len(rows) == 3
+@pytest.fixture(autouse=True)
+def no_camera(monkeypatch):
+    def fail(*_args, **_kwargs):
+        raise collect.CameraError("no camera in tests")
+    monkeypatch.setattr(collect, "Camera", fail)
 
-def test_reopening_does_not_duplicate_header(tmp_path):
-    out = tmp_path / "samples.csv"
-    with SampleWriter(out) as w:
-        w.write("happy", np.zeros(NUM_FEATURES))
-    with SampleWriter(out) as w: # second "session"
-        w.write("angry", np.zeros(NUM_FEATURES))
 
-    rows = list(csv.reader(out.open()))
-    assert sum(1 for r in rows if r[0] == "label") == 1
-    assert count_existing(out) == {"happy": 1, "angry": 1}
+def run(monkeypatch, path, *flags, answer="y"):
+    monkeypatch.setattr(sys, "argv", ["collect", "--out", str(path), *flags])
+    monkeypatch.setattr("builtins.input", lambda _prompt: answer)
+    return collect.main()
+
+
+def test_stale_header_fails_fast_with_error(tmp_path, monkeypatch, capsys):
+    path = tmp_path / "samples.csv"
+    path.write_text(STALE)
+
+    assert run(monkeypatch, path) == 1
+    assert "feature layout" in capsys.readouterr().out
+
+
+def test_reset_clears_stale_header_file(tmp_path, monkeypatch):
+    path = tmp_path / "samples.csv"
+    path.write_text(STALE)
+
+    run(monkeypatch, path, "--reset")
+
+    assert not path.exists()
+
+
+def test_reset_clears_header_only_file(tmp_path, monkeypatch):
+    path = tmp_path / "samples.csv"
+    path.write_text(",".join(HEADER) + "\n")  # exists but has zero samples
+
+    run(monkeypatch, path, "--reset")
+
+    assert not path.exists()
+
+
+def test_reset_declined_keeps_file(tmp_path, monkeypatch):
+    path = tmp_path / "samples.csv"
+    path.write_text(STALE)
+
+    assert run(monkeypatch, path, "--reset", answer="n") == 0
+    assert path.exists()
