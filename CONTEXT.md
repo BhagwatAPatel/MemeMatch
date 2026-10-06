@@ -27,5 +27,15 @@ The expression class name of a **sample** (`neutral`, `happy`, `surprised`, `ang
 **Expression model**:
 The trained classifier together with its **label** vocabulary, the feature contract it was trained against and the **sessions** it held out for validation and test, saved as one file. Turns a **feature vector** into a label plus a confidence. Avoid: classifier, MLP, checkpoint.
 
+**Prediction**:
+The **expression model**'s **label** and **confidence** for one frame's **feature vector**. Per-frame and jittery; nothing acts on it directly.
+
+**Smoother**:
+The module that turns a stream of **predictions** (or their absence, when no face is found) into a **confirmed expression**.
+
+**Confirmed expression**:
+The **label** the app currently acts on, or none. A label becomes confirmed once it wins a strict majority of the recent **predictions** with sufficient mean **confidence**; switching to a different label also requires the previous one to have been held for a minimum time. Losing the face clears it immediately.
+_Avoid_: current expression, detected expression (ambiguous between raw and confirmed)
+
 **Confidence**:
 The **expression model**'s softmax probability for its top **label** on one **feature vector**. Uncalibrated: it measures how peaked the model's output is, not how often it is right. The live threshold is chosen by comparing confidence on correct vs. wrong held-out predictions.
