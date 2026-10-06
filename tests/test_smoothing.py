@@ -1,6 +1,6 @@
 '''Tests for app.smoothing. Pure logic: timestamps are passed in, no clock.'''
 
-from app.expression_classifier import Prediction
+from app.prediction import Prediction
 from app.smoothing import Smoother
 
 
@@ -40,3 +40,18 @@ def test_switching_to_another_expression_waits_for_the_hold_time():
 
     assert _feed(smoother, "angry", 0.9, 10, start=0.3) == "happy"  # t=0.3-0.75, too soon
     assert smoother.update(Prediction("angry", 0.9), 1.8) == "angry"  # held 1.55 s
+
+
+def test_a_confirmed_expression_expires_once_the_vote_fails_and_the_hold_has_passed():
+    smoother = Smoother(window=10, threshold=0.70, hold=1.5)
+    assert _feed(smoother, "happy", 0.9, 6) == "happy"  # confirmed at t=0.25
+
+    assert _feed(smoother, "happy", 0.4, 10, start=0.3) == "happy"  # vote fails, but too soon
+    assert smoother.update(Prediction("happy", 0.4), 1.8) is None  # held 1.55 s
+
+
+def test_mean_confidence_exactly_at_the_threshold_confirms():
+    smoother = Smoother(window=10, threshold=0.75)
+
+    _feed(smoother, "happy", 0.5, 3)
+    assert _feed(smoother, "happy", 1.0, 3, start=0.15) == "happy"  # mean of the six is 0.75

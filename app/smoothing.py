@@ -8,7 +8,7 @@ Pipeline position: ExpressionClassifier -> [Smoother] -> meme engine
 
 from collections import Counter, deque
 
-from app.expression_classifier import Prediction
+from app.prediction import Prediction
 
 
 class Smoother:
@@ -21,19 +21,29 @@ class Smoother:
         self._confirmed_at = 0.0
 
     def update(self, prediction: Prediction | None, now: float) -> str | None:
-        '''Feed one frame's prediction (None = no face); return the confirmed expression.'''
+        '''Feed one frame's prediction (None = no face); return the confirmed expression.
+
+        The confirmed expression follows the candidate (the label currently
+        winning the vote, or None), but any change waits until the current
+        one has been held for the hold time. Losing the face skips the wait.
+        '''
         if prediction is None:
             self._recent.clear()
             self._confirmed = None
             return None
+
         self._recent.append(prediction)
-        label, votes = Counter(p.label for p in self._recent).most_common(1)[0]
-        mean_confidence = sum(p.confidence for p in self._recent if p.label == label) / votes
-        if votes > self._window / 2 and mean_confidence >= self._threshold:
-            if label != self._confirmed and self._may_switch(now):
-                self._confirmed = label
-                self._confirmed_at = now
+        candidate = self._candidate()
+        held_long_enough = now - self._confirmed_at >= self._hold
+        if candidate != self._confirmed and (self._confirmed is None or held_long_enough):
+            self._confirmed = candidate
+            self._confirmed_at = now
         return self._confirmed
 
-    def _may_switch(self, now: float) -> bool:
-        return self._confirmed is None or now - self._confirmed_at >= self._hold
+    def _candidate(self) -> str | None:
+        '''The label with a strict majority of the window and enough mean confidence.'''
+        label, votes = Counter(p.label for p in self._recent).most_common(1)[0]
+        if votes <= self._window / 2:
+            return None
+        mean_confidence = sum(p.confidence for p in self._recent if p.label == label) / votes
+        return label if mean_confidence >= self._threshold else None

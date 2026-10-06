@@ -16,8 +16,9 @@ import cv2
 
 from app.camera import Camera, CameraError, FPSCounter
 from app.face_tracker import FaceTracker, draw_face_debug 
-from app.expression_classifier import ExpressionClassifier, Prediction
+from app.expression_classifier import ExpressionClassifier
 from app.features import extract_features, top_features
+from app.prediction import Prediction
 from app.smoothing import Smoother
 
 
@@ -31,21 +32,18 @@ def parse_args():
     )
     return parser.parse_args()
 
-def draw_hud(frame, fps: float, face_found: bool = False):
-    '''Draw the heads-up display (FPS and face status) onto the frame.'''
-    text = f"FPS: {fps:4.1f}    Face: {'yes' if face_found else 'no'}"
-    cv2.putText(
-        frame, text, (10, 25),
-        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA,
-    )
-
-def draw_expression_hud(frame, prediction: Prediction | None, confirmed: str | None):
-    '''Draw the raw per-frame prediction and the confirmed expression.'''
+def draw_hud(frame, fps: float, prediction: Prediction | None, confirmed: str | None):
+    '''Draw FPS, the raw per-frame prediction and the confirmed expression.'''
     raw = f"{prediction.label} {prediction.confidence:.2f}" if prediction else "-"
-    cv2.putText(
-        frame, f"Raw: {raw}    Confirmed: {confirmed or '-'}", (10, 55),
-        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA,
-    )
+    lines = [
+        f"FPS: {fps:4.1f}    Face: {'yes' if prediction else 'no'}",
+        f"Raw: {raw}    Confirmed: {confirmed or '-'}",
+    ]
+    for i, text in enumerate(lines):
+        cv2.putText(
+            frame, text, (10, 25 + i * 30),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA,
+        )
 
 def main() -> int:
     args = parse_args()
@@ -54,7 +52,12 @@ def main() -> int:
 
     try:
         classifier = ExpressionClassifier()
-        smoother = Smoother()
+    except (FileNotFoundError, ValueError) as err:  # no model, or a stale one
+        print(f"Error: {err}", file=sys.stderr)
+        return 1
+    smoother = Smoother()
+
+    try:
         with Camera(args.camera) as cam, FaceTracker() as tracker:
             print(f"Camera {args.camera} opened. Press q to quit, 1 to toggle landmarks.")
             while True:
@@ -77,8 +80,7 @@ def main() -> int:
                         cv2.putText(frame, f"{name}: {score:.2f}", (10, 90 + i * 25),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
-                draw_hud(frame, fps_counter.tick(), face is not None)
-                draw_expression_hud(frame, prediction, confirmed)
+                draw_hud(frame, fps_counter.tick(), prediction, confirmed)
                 cv2.imshow(WINDOW_NAME, frame)
 
                 # waitKey(1) waits 1ms for a key AND lets the window redraw.
@@ -89,7 +91,7 @@ def main() -> int:
                 if key == ord("1"):
                     show_landmarks = not show_landmarks
 
-    except (CameraError, FileNotFoundError, ValueError) as err:
+    except (CameraError, FileNotFoundError) as err:
         print(f"Error: {err}", file=sys.stderr)
         return 1
     finally:

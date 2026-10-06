@@ -7,21 +7,13 @@ by training.model.load_model, so train/serve skew can't creep in here.
 Pipeline position: Features -> [ExpressionClassifier] -> Smoother
 '''
 
-from dataclasses import dataclass
 from pathlib import Path
 
 import numpy as np
 import torch
 
+from app.prediction import Prediction
 from training.model import DEFAULT_MODEL_PATH, load_model
-
-
-@dataclass(frozen=True)
-class Prediction:
-    '''The model's top label and its softmax confidence for one frame.'''
-
-    label: str
-    confidence: float
 
 
 class ExpressionClassifier:
