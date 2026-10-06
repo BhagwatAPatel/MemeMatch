@@ -9,13 +9,16 @@ Run with:
 '''
 
 import argparse
-import sys 
+import sys
+import time
 
 import cv2
 
 from app.camera import Camera, CameraError, FPSCounter
 from app.face_tracker import FaceTracker, draw_face_debug 
-from app.features import top_features
+from app.expression_classifier import ExpressionClassifier, Prediction
+from app.features import extract_features, top_features
+from app.smoothing import Smoother
 
 
 WINDOW_NAME = "MemeMatch"
@@ -36,12 +39,22 @@ def draw_hud(frame, fps: float, face_found: bool = False):
         cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA,
     )
 
+def draw_expression_hud(frame, prediction: Prediction | None, confirmed: str | None):
+    '''Draw the raw per-frame prediction and the confirmed expression.'''
+    raw = f"{prediction.label} {prediction.confidence:.2f}" if prediction else "-"
+    cv2.putText(
+        frame, f"Raw: {raw}    Confirmed: {confirmed or '-'}", (10, 55),
+        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA,
+    )
+
 def main() -> int:
     args = parse_args()
     fps_counter = FPSCounter()
     show_landmarks = True
 
     try:
+        classifier = ExpressionClassifier()
+        smoother = Smoother()
         with Camera(args.camera) as cam, FaceTracker() as tracker:
             print(f"Camera {args.camera} opened. Press q to quit, 1 to toggle landmarks.")
             while True:
@@ -54,6 +67,8 @@ def main() -> int:
                 frame = cv2.flip(frame, 1)
 
                 face = tracker.process(frame)
+                prediction = classifier.predict(extract_features(face)) if face is not None else None
+                confirmed = smoother.update(prediction, time.monotonic())
                 if face is not None:
                     if show_landmarks:
                         draw_face_debug(frame, face)
@@ -63,6 +78,7 @@ def main() -> int:
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
                 draw_hud(frame, fps_counter.tick(), face is not None)
+                draw_expression_hud(frame, prediction, confirmed)
                 cv2.imshow(WINDOW_NAME, frame)
 
                 # waitKey(1) waits 1ms for a key AND lets the window redraw.
@@ -73,7 +89,7 @@ def main() -> int:
                 if key == ord("1"):
                     show_landmarks = not show_landmarks
 
-    except (CameraError, FileNotFoundError) as err:
+    except (CameraError, FileNotFoundError, ValueError) as err:
         print(f"Error: {err}", file=sys.stderr)
         return 1
     finally:
