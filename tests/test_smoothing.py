@@ -55,3 +55,19 @@ def test_mean_confidence_exactly_at_the_threshold_confirms():
 
     _feed(smoother, "happy", 0.5, 3)
     assert _feed(smoother, "happy", 1.0, 3, start=0.15) == "happy"  # mean of the six is 0.75
+
+
+def test_an_even_split_between_two_expressions_confirms_neither():
+    smoother = Smoother(window=10)
+    for i in range(10):
+        confirmed = smoother.update(Prediction("happy" if i % 2 else "sad", 0.9), i * 0.05)
+
+    assert confirmed is None
+
+
+def test_a_confirmed_expression_can_change_through_none_after_the_hold():
+    smoother = Smoother(window=10, hold=1.5)
+    assert _feed(smoother, "happy", 0.9, 6) == "happy"  # confirmed at t=0.25
+
+    assert smoother.update(None, 0.3) is None  # face lost: clears at once, no hold
+    assert _feed(smoother, "angry", 0.9, 6, start=0.35) == "angry"  # none -> label is immediate

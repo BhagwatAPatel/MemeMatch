@@ -44,3 +44,22 @@ def test_model_trained_on_a_different_feature_layout_is_rejected(tmp_path):
 
     with pytest.raises(ValueError, match="feature layout"):
         ExpressionClassifier(path)
+
+
+def test_a_corrupt_model_file_says_to_retrain(tmp_path):
+    path = tmp_path / "model.pt"
+    path.write_bytes(b"not a torch file")
+
+    with pytest.raises(ValueError, match="Retrain"):
+        ExpressionClassifier(path)
+
+
+def test_a_model_file_missing_its_weights_says_to_retrain(tmp_path):
+    labels = ["angry", "happy"]
+    path = _save(tmp_path, _model_that_always_says(0, labels), labels)
+    bundle = torch.load(path, weights_only=False)
+    del bundle["state_dict"]
+    torch.save(bundle, path)
+
+    with pytest.raises(ValueError, match="Retrain"):
+        ExpressionClassifier(path)

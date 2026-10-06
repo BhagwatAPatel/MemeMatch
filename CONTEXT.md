@@ -25,7 +25,10 @@ Train, validation and test tensors plus the label vocabulary, built from the **s
 The expression class name of a **sample** (`neutral`, `happy`, `surprised`, `angry`, `sad`). Class ids are derived from the sorted label names at load time.
 
 **Expression model**:
-The trained classifier together with its **label** vocabulary, the feature contract it was trained against and the **sessions** it held out for validation and test, saved as one file. Turns a **feature vector** into a label plus a confidence. Avoid: classifier, MLP, checkpoint.
+The trained network together with its **label** vocabulary, the feature contract it was trained against and the **sessions** it held out for validation and test, saved as one file. Turns a **feature vector** into a label plus a confidence. Avoid: MLP, checkpoint; and "classifier" for the model itself (see **Expression classifier**).
+
+**Expression classifier**:
+The live-inference wrapper (`app.expression_classifier.ExpressionClassifier`) that loads an **expression model** and turns each **feature vector** into a **prediction**. The model is the trained artifact; the classifier is what the app calls.
 
 **Prediction**:
 The **expression model**'s **label** and **confidence** for one frame's **feature vector**. Per-frame and jittery; nothing acts on it directly.
@@ -34,7 +37,7 @@ The **expression model**'s **label** and **confidence** for one frame's **featur
 The module that turns a stream of **predictions** (or their absence, when no face is found) into a **confirmed expression**.
 
 **Confirmed expression**:
-The **label** the app currently acts on, or none. A label becomes confirmed once it wins a strict majority of the recent **predictions** with sufficient mean **confidence**; switching to a different label also requires the previous one to have been held for a minimum time. Losing the face clears it immediately.
+The **label** the app currently acts on, or none. A label becomes confirmed once it wins a strict majority of the recent **predictions** with sufficient mean **confidence**; any change from one confirmed state to another (a different label, or none once the vote fails) also requires the previous one to have been held for a minimum time. Losing the face clears it immediately.
 _Avoid_: current expression, detected expression (ambiguous between raw and confirmed)
 
 **Confidence**:

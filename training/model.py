@@ -7,6 +7,7 @@ Architecture (from SPEC.md section 7)
     Linear(52, 64) -> ReLU -> Dropout(0.2) -> Linear(64, 32) -> ReLU -> Linear(32, N)
 
 '''
+import pickle
 from pathlib import Path
 
 import torch
@@ -72,17 +73,29 @@ def load_model(path: Path = DEFAULT_MODEL_PATH) -> tuple[ExpressionMLP, list[str
     # weights_only=False because we stored plain Python lists alongside the
     # tensors. Fine for a file we produced ourselves.
 
-    bundle = torch.load(path, map_location="cpu", weights_only=False)
+    try:
+        bundle = torch.load(path, map_location="cpu", weights_only=False)
+        feature_names, labels, state_dict = (
+            bundle["feature_names"], bundle["labels"], bundle["state_dict"]
+        )
+    except (RuntimeError, EOFError, KeyError, TypeError, pickle.UnpicklingError):
+        raise ValueError(
+            f"Model file {path} is corrupt or incomplete. Retrain with: python -m training.train"
+        ) from None
 
-    if bundle["feature_names"] != FEATURE_NAMES:
+    if feature_names != FEATURE_NAMES:
         raise ValueError(
             "Model was trained on a different feature layout than app.features "
             "currently defines. Retrain with: python -m training.train"
         )
 
-    labels = bundle["labels"]
     model = ExpressionMLP(num_classes=len(labels))
-    model.load_state_dict(bundle["state_dict"])
+    try:
+        model.load_state_dict(state_dict)
+    except RuntimeError:
+        raise ValueError(
+            f"Model file {path} doesn't match the network. Retrain with: python -m training.train"
+        ) from None
     model.eval()
     return model, labels
 

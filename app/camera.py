@@ -76,3 +76,26 @@ class FPSCounter:
             self.fps = self.smoothing * self.fps + (1 - self.smoothing) * instant
         return self.fps
         
+
+class FrameTimeLog:
+    '''Averages frame times and reports once per period (SPEC section 12).'''
+
+    def __init__(self, period: float = 30.0):
+        self._period = period
+        self._started_at: float | None = None
+        self._total = 0.0
+        self._count = 0
+
+    def record(self, frame_seconds: float, now: float) -> str | None:
+        '''Add one frame. Returns a summary line when a period has elapsed, else None.'''
+        if self._started_at is None:
+            self._started_at = now
+        self._total += frame_seconds
+        self._count += 1
+        if now - self._started_at < self._period:
+            return None
+
+        average_ms = self._total / self._count * 1000
+        report = f"Average frame time over {self._count} frames: {average_ms:.1f} ms"
+        self._started_at, self._total, self._count = None, 0.0, 0
+        return report
