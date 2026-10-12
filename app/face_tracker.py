@@ -45,8 +45,8 @@ class FaceTracker:
     def __init__(self, model_path: Path = DEFAULT_MODEL_PATH):
         if not model_path.exists():
             raise FileNotFoundError(
-                f"Face landmarker model not found at {model_path}."
-                "Download it as described in README.md"
+                f"Face landmarker model not found at {model_path}. "
+                "Download it as described in README.md."
             )
 
         options = vision.FaceLandmarkerOptions(

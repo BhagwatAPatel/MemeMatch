@@ -26,10 +26,11 @@ class Camera:
         self.cap = cv2.VideoCapture(index, cv2.CAP_AVFOUNDATION)
 
         if not self.cap.isOpened():
-            raise CameraError( f"Count not open camera {index}. Check that it is connected and"
-                              "not in use by another app, and that Terminal has Camera permissions"
-                              "(System Settings > Privacy & security > Camera)"
-                            )
+            raise CameraError(
+                f"Could not open camera {index}. Check that it is connected and "
+                "not in use by another app, and that Terminal has Camera permissions "
+                "(System Settings > Privacy & Security > Camera)."
+            )
 
         # These are requests not guarantees: the camera picks the closest
         # size it supports. 640 x 480 keeps every later stage fast.
