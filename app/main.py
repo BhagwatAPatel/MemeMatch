@@ -17,11 +17,11 @@ import cv2
 from app.camera import Camera, CameraError, FPSCounter, FrameTimeLog
 from app.face_tracker import FaceTracker, draw_face_debug 
 from app.expression_classifier import ExpressionClassifier
-from app.features import extract_features, top_features
+from app.features import top_features
 from app.meme_display import MemeDisplay
 from app.meme_picker import MemePicker
+from app.pipeline import FramePipeline
 from app.prediction import Prediction
-from app.rules import label_by_rules
 from app.smoothing import Smoother
 
 
@@ -71,25 +71,13 @@ def main() -> int:
 
     try:
         with Camera(args.camera) as cam, FaceTracker() as tracker:
+            pipeline = FramePipeline(tracker, classifier, smoother, meme_display)
             print(f"Camera {args.camera} opened. Press q to quit, 1 to toggle landmarks.")
             while True:
                 frame_started = time.perf_counter()
-                frame = cam.read()
+                result = pipeline.process(cam.read(), time.monotonic())
+                frame, face = result.frame, result.face
 
-                # Mirror so the preview behaves like a mirror (move right,
-                # you move right). Video-call apps do the same.
-                # Must happen BEFORE tracking so landmarks line up with 
-                # what is drawn on screen
-                frame = cv2.flip(frame, 1)
-
-                face = tracker.process(frame)
-                prediction = rule_label = None
-                if face is not None:
-                    features = extract_features(face)
-                    prediction = classifier.predict(features)
-                    rule_label = label_by_rules(features)
-                confirmed = smoother.update(prediction, time.monotonic())
-                meme_display.draw(frame, confirmed, face.box if face else None)
                 if face is not None:
                     if show_landmarks:
                         draw_face_debug(frame, face)
@@ -98,7 +86,10 @@ def main() -> int:
                         cv2.putText(frame, f"{name}: {score:.2f}", (10, 90 + i * 25),
                                     cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
 
-                draw_hud(frame, fps_counter.tick(), prediction, confirmed, rule_label)
+                draw_hud(
+                    frame, fps_counter.tick(), result.prediction, result.confirmed,
+                    result.rule_label,
+                )
                 cv2.imshow(WINDOW_NAME, frame)
 
                 # waitKey(1) waits 1ms for a key AND lets the window redraw.
