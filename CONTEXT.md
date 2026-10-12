@@ -37,8 +37,24 @@ The **expression model**'s **label** and **confidence** for one frame's **featur
 The module that turns a stream of **predictions** (or their absence, when no face is found) into a **confirmed expression**.
 
 **Confirmed expression**:
-The **label** the app currently acts on, or none. A label becomes confirmed once it wins a strict majority of the recent **predictions** with sufficient mean **confidence**; any change from one confirmed state to another (a different label, or none once the vote fails) also requires the previous one to have been held for a minimum time. Losing the face clears it immediately.
+The **label** the app currently acts on, or none. A label becomes confirmed once it wins a strict majority of the recent **predictions** with sufficient mean **confidence**; any change from one confirmed state to another (a different label, or none once the vote fails) also requires the previous one to have been held for a minimum time. Losing the face clears it immediately. A **meme** is shown exactly when a confirmed expression exists; nothing downstream applies a second confidence gate.
 _Avoid_: current expression, detected expression (ambiguous between raw and confirmed)
 
 **Confidence**:
 The **expression model**'s softmax probability for its top **label** on one **feature vector**. Uncalibrated: it measures how peaked the model's output is, not how often it is right. The live threshold is chosen by comparing confidence on correct vs. wrong held-out predictions.
+
+**Meme**:
+An image the app can overlay on the face for a **label**. What a meme is stored as (today a static image file) is not part of the term.
+
+**Meme library**:
+All the **memes** the app can show, grouped into one category per **label**. A category's name is its label. A category may be empty.
+
+**Meme picker**:
+The module that loads the **meme library** and chooses a **meme** for a **label**. The only code that knows the library's layout on disk. A meme is chosen once when a label becomes the **confirmed expression** and kept until the confirmed expression changes or clears; the choice avoids repeating the previous meme shown for that label. When the label's category is empty, no meme is shown.
+_Avoid_: meme engine
+
+**Placement**:
+Where and how large the **meme** sits for one frame: a rectangle derived from the face box alone, smoothed over time. Independent of which meme is shown, so swapping memes never moves or resizes the placement. Cleared when the face is lost, so a returning face snaps rather than glides. May extend past the frame edge.
+
+**Overlay**:
+The module that composites a **meme** onto a frame at a **placement**, clipping whatever falls outside the frame. The only code that touches pixels for the meme.

@@ -143,7 +143,7 @@ MVP is complete when, from a fresh clone, you can:
  smoothing.py     ---- majority vote / threshold / hold / cooldown
         |  confirmed expression (or None)
         v
- meme_engine.py   ---- category -> pick PNG (RGBA)
+ meme_picker.py   ---- label -> pick meme (RGBA PNG)
         |
         v
  overlay.py       ---- scale, position (smoothed), alpha-blend onto frame
@@ -178,7 +178,7 @@ MemeMatch/
 │   ├── features.py              # FaceResult -> feature vector (shared with training)
 │   ├── expression_classifier.py # loads model, predicts (class, confidence)
 │   ├── smoothing.py             # temporal decision logic
-│   ├── meme_engine.py           # loads memes/ folder, picks a meme
+│   ├── meme_picker.py           # loads the meme library, picks a meme for a label
 │   ├── overlay.py               # positions and alpha-blends meme onto frame
 │   ├── ui.py                    # [V1] PySide6 window
 │   └── virtual_camera.py        # [V2] pyvirtualcam output
@@ -288,7 +288,7 @@ Mitigations if needed: run at 640x480 not 1080p; run landmarker every 2nd frame 
 
 | Type | What | When introduced |
 |---|---|---|
-| Unit | `features.py` (vector length, ordering), `smoothing.py` (vote/hold/cooldown logic with fake timestamps), `overlay.py` (blend math on synthetic images), `meme_engine.py` (folder loading, no-repeat) | Phase 3 onward, as each module is written |
+| Unit | `features.py` (vector length, ordering), `smoothing.py` (vote/hold/cooldown logic with fake timestamps), `overlay.py` (blend math on synthetic images), `meme_picker.py` (library loading, no-repeat, empty category) | Phase 3 onward, as each module is written |
 | ML eval | `training/evaluate.py` on held-out split; confusion matrix must show no class < 70% recall | Phase 5 |
 | Integration | Run the pipeline on a short recorded video file instead of a live camera; assert a face is found and a class is produced | Phase 6 |
 | Performance | FPS counter on screen; log average frame time over 30 s | Phase 6 |
@@ -310,7 +310,7 @@ Mitigations if needed: run at 640x480 not 1080p; run landmarker every 2nd frame 
 
 **FR-009/010 (live inference + smoothing)**: expression label and confidence drawn on screen; the label does not flicker frame-to-frame; a held expression is confirmed within ~1 s.
 
-**FR-011/012 (meme engine)**: app starts with 2+ PNGs in each of 5 folders; a warning (not a crash) if a folder is empty.
+**FR-011/012 (meme picker)**: app starts with 2+ PNGs in each of 5 folders; a warning (not a crash) if a folder is empty.
 
 **FR-013/014 (overlay)**: meme appears above your head with clean transparent edges, scales when you move closer/further, follows you smoothly, disappears when no face.
 
@@ -331,7 +331,7 @@ Each phase becomes one or more numbered Steps in the mentoring sessions. Every s
 | 4 | Data collection | `training/collect.py`, record 5 classes | `feat: expression data collection tool` |
 | 5 | Model | `model.py`, `dataset.py`, `train.py`, `evaluate.py`, saved model | `feat: train and evaluate expression MLP` |
 | 6 | Live inference | `expression_classifier.py`, `smoothing.py`, HUD | `feat: real-time expression classification` |
-| 7 | Meme engine | `meme_engine.py`, meme folders | `feat: local meme library and selection` |
+| 7 | Meme picker | `meme_picker.py`, meme folders | `feat: local meme library and selection` |
 | 8 | Overlay & tracking | `overlay.py`, EMA smoothing | `feat: meme overlay tracking the face` (MVP DONE) |
 | 9 | GUI | `ui.py` PySide6, worker thread | `feat: PySide6 interface` |
 | 10 | Virtual camera | `virtual_camera.py` via pyvirtualcam/OBS | `feat: virtual camera output` |

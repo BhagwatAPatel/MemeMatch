@@ -3,7 +3,7 @@
 A single frame's prediction is jittery. The Smoother only confirms a label
 once it dominates the recent window, so the meme doesn't flicker.
 
-Pipeline position: ExpressionClassifier -> [Smoother] -> meme engine
+Pipeline position: ExpressionClassifier -> [Smoother] -> meme picker
 '''
 
 from collections import Counter, deque
