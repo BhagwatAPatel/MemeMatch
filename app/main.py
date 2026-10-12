@@ -18,6 +18,8 @@ from app.camera import Camera, CameraError, FPSCounter, FrameTimeLog
 from app.face_tracker import FaceTracker, draw_face_debug 
 from app.expression_classifier import ExpressionClassifier
 from app.features import extract_features, top_features
+from app.meme_display import MemeDisplay
+from app.meme_picker import MemePicker
 from app.prediction import Prediction
 from app.rules import label_by_rules
 from app.smoothing import Smoother
@@ -62,6 +64,10 @@ def main() -> int:
         print(f"Error: {err}", file=sys.stderr)
         return 1
     smoother = Smoother()
+    picker = MemePicker()
+    if warning := picker.startup_warning():
+        print(f"Warning: {warning}", file=sys.stderr)
+    meme_display = MemeDisplay(picker)
 
     try:
         with Camera(args.camera) as cam, FaceTracker() as tracker:
@@ -83,6 +89,7 @@ def main() -> int:
                     prediction = classifier.predict(features)
                     rule_label = label_by_rules(features)
                 confirmed = smoother.update(prediction, time.monotonic())
+                meme_display.draw(frame, confirmed, face.box if face else None)
                 if face is not None:
                     if show_landmarks:
                         draw_face_debug(frame, face)

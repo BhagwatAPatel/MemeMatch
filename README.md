@@ -4,7 +4,7 @@ A real-time computer-vision app that reads your facial expression from your webc
 and overlays a matching meme that follows your face. Runs 100% locally.
 
 ## Status
-Phase 6: live expression classification with temporal smoothing. The HUD shows the raw and confirmed expression. Needs a trained model: `python -m training.train`.
+Phase 8: the confirmed expression shows its meme above your head, following your face. Memes live in `memes/<label>/`. Needs a trained model: `python -m training.train`.
 
 See `docs/SPEC.md` for the full specification and roadmap.
 
