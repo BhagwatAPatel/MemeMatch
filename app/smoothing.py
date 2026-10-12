@@ -12,7 +12,7 @@ from app.prediction import Prediction
 
 
 class Smoother:
-    def __init__(self, window: int = 10, threshold: float = 0.70, hold: float = 1.5):
+    def __init__(self, window: int = 10, threshold: float = 0.70, hold: float = 0.5):
         self._window = window
         self._threshold = threshold
         self._hold = hold

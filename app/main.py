@@ -37,20 +37,29 @@ def parse_args():
 
 def draw_hud(
     frame, fps: float, prediction: Prediction | None, confirmed: str | None,
-    rule_label: str | None,
+    rule_label: str | None, features: list[tuple[str, float]],
 ):
-    '''Draw FPS, the raw prediction, the confirmed expression and the rule baseline.'''
+    '''Draw FPS, the raw prediction, the confirmed expression, the rule
+    baseline and the strongest blendshapes, stacked so no two lines overlap.'''
     raw = f"{prediction.label} {prediction.confidence:.2f}" if prediction else "-"
     lines = [
         f"FPS: {fps:4.1f}    Face: {'yes' if prediction else 'no'}",
         f"Raw: {raw}    Confirmed: {confirmed or '-'}",
         f"Rules: {rule_label or '-'}",
     ]
-    for i, text in enumerate(lines):
+    y = 25
+    for text in lines:
         cv2.putText(
-            frame, text, (10, 25 + i * 30),
+            frame, text, (10, y),
             cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2, cv2.LINE_AA,
         )
+        y += 30
+    for name, score in features:
+        cv2.putText(
+            frame, f"{name}: {score:.2f}", (10, y),
+            cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2, cv2.LINE_AA,
+        )
+        y += 25
 
 def main() -> int:
     args = parse_args()
@@ -78,17 +87,12 @@ def main() -> int:
                 result = pipeline.process(cam.read(), time.monotonic())
                 frame, face = result.frame, result.face
 
-                if face is not None:
-                    if show_landmarks:
-                        draw_face_debug(frame, face)
-
-                    for i, (name, score) in enumerate(top_features(face)):
-                        cv2.putText(frame, f"{name}: {score:.2f}", (10, 90 + i * 25),
-                                    cv2.FONT_HERSHEY_SIMPLEX, 0.6, (0, 255, 255), 2)
+                if face is not None and show_landmarks:
+                    draw_face_debug(frame, face)
 
                 draw_hud(
                     frame, fps_counter.tick(), result.prediction, result.confirmed,
-                    result.rule_label,
+                    result.rule_label, top_features(face) if face is not None else [],
                 )
                 cv2.imshow(WINDOW_NAME, frame)
 

@@ -192,7 +192,7 @@ MemeMatch/
 │   ├── face_landmarker.task     # downloaded MediaPipe bundle (~3.7 MB)
 │   └── expression_model.pt      # your trained classifier
 ├── memes/
-│   ├── happy/  angry/  surprised/  sad/  neutral/
+│   ├── happy/  angry/  surprised/  sad/    (no neutral/: a neutral face shows no meme)
 ├── data/                        # collected CSV samples (gitignored)
 ├── tests/
 ├── docs/
@@ -241,7 +241,7 @@ MemeMatch/
 | Tracking | face box every frame, smoothed with EMA (alpha ~0.3) for position and size |
 | Confidence threshold | 0.70 |
 | Vote window | last 10 predictions must agree by majority |
-| Hold time | minimum 1.5 s before a switch |
+| Hold time | minimum 0.5 s before a switch |
 | Cooldown | 0.5 s of "no meme" between switches (optional, tunable) |
 | No face | fade out / hide immediately |
 

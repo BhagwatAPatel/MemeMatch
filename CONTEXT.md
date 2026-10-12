@@ -47,7 +47,7 @@ The **expression model**'s softmax probability for its top **label** on one **fe
 An image the app can overlay on the face for a **label**. What a meme is stored as (today a static image file) is not part of the term.
 
 **Meme library**:
-All the **memes** the app can show, grouped into one category per **label**. A category's name is its label. A category may be empty.
+All the **memes** the app can show, grouped into one category per **label** that shows a meme. A category's name is its label. `neutral` is a label but deliberately has no category: a neutral face shows no meme. A category may be empty.
 
 **Meme picker**:
 The module that loads the **meme library** and chooses a **meme** for a **label**. The only code that knows the library's layout on disk. A meme is chosen once when a label becomes the **confirmed expression** and kept until the confirmed expression changes or clears; the choice avoids repeating the previous meme shown for that label. When the label's category is empty, no meme is shown.
